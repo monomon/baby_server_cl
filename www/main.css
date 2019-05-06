@@ -1,0 +1,49 @@
+body {
+    color: #444;
+}
+
+label {
+    width: 7em;
+    display: inline-block;
+    text-align: right;
+}
+
+input[type="text"], input[type="number"]
+{
+    width: 5em;
+}
+
+input[type="submit"]
+{
+    align: right;
+}
+
+body {
+    background-color: powderblue;
+}
+
+h1 {
+    color: #555;
+}
+
+#data {
+    border-collapse: collapse;
+}
+
+#data td,
+#data th {
+    border: 1px solid #555;
+}
+
+#data th {
+    font-size: smaller;
+}
+
+#input-form, #data {
+    display: inline-block;
+    vertical-align: top;
+}
+
+#input-form {
+    margin-right: 18px;
+}
