@@ -3,7 +3,7 @@ body {
 }
 
 label {
-    width: 7em;
+    width: 7.5em;
     display: inline-block;
     text-align: right;
 }
@@ -16,6 +16,11 @@ input[type="text"], input[type="number"]
 input[type="submit"]
 {
     align: right;
+}
+
+input.timestamp
+{
+    width: 13em;
 }
 
 body {
@@ -32,18 +37,35 @@ h1 {
 
 #data td,
 #data th {
-    border: 1px solid #555;
+    border: 1px solid #999;
+    padding: 2px;
 }
 
 #data th {
-    font-size: smaller;
+    font-size: x-small;
 }
 
-#input-form, #data {
+#data {
     display: inline-block;
     vertical-align: top;
 }
 
 #input-form {
+    display: inline-block;
     margin-right: 18px;
+}
+
+#input-form div {
+    margin: 3px;
+}
+
+table, th, td {
+    border: 1px solid #eaeaea;
+}
+
+tr:nth-child(even) {
+    background-color: #eaeaea;
+}
+tr:nth-child(odd) {
+    background-color: #ffcccc;
 }

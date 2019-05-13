@@ -2,6 +2,7 @@
 (ql:quickload "cl-who")
 (ql:quickload "parenscript")
 (ql:quickload "parse-float")
+(ql:quickload "local-time")
 
 (defpackage baby-diary
   (:use :cl :cl-who :hunchentoot :parenscript))
@@ -13,6 +14,13 @@
 (defparameter *db_path* "db.txt")
 (defparameter *db* nil)
 (defparameter *save-counter* 0)
+(defconstant +diary-date-format+ (list :year #\- '(:month 2) #\- '(:day 2)))
+(defconstant +diary-time-format+ (list '(:hour 2) #\: '(:min 2)))
+
+(defun parse-request-datetime (date time)
+  (local-time:timestamp-to-universal
+   (local-time:parse-timestring
+    (concatenate 'string date "T" time ":00")))) ;add seconds because parsing fails otherwise
 
 (defmacro main-page ((&key title) &body body)
   `(with-html-output-to-string (*standard-output* nil :prologue t :indent t)
@@ -28,15 +36,29 @@
        ,@body))))
 
 (define-easy-handler (main-handler :uri "/") (name)
-  (main-page (:title "baby diary")
-    (:h1 "baby diary")
+  (main-page (:title "Sarah's diary")
+    (:h1 "Sarah's diary")
     (:form
      :method :post
      :action "/submit"
      :id "input-form"
-     (:div (:label "food (cl)")
+     (:div (:label "date")
+	   (:input :type :date
+		   :name "date"
+		   :value (local-time:format-timestring nil (local-time:now) :format +diary-date-format+)
+		   :class "date"))
+     (:div (:label "time")
+	   (:input :type :time
+		   :name "time"
+		   :value (local-time:format-timestring nil (local-time:now) :format +diary-time-format+)
+		   :class "time"))
+     (:div (:label "bv (cl)")
 	   (:input :type :number
-		   :name "food"
+		   :name "bv"
+		   :value ""))
+     (:div (:label "kv (cl)")
+	   (:input :type :number
+		   :name "kv"
 		   :value ""))
      (:div (:label "temperature (°C)")
 	   (:input :type :number
@@ -50,6 +72,18 @@
      (:div (:label "poo")
 	   (:input :type :checkbox
 		   :name "poo"
+		   :value ""))
+     (:div (:label "vitaminD")
+	   (:input :type :checkbox
+		   :name "vitamind"
+		   :value ""))
+     (:div (:label "vitaminK")
+	   (:input :type :checkbox
+		   :name "vitamink"
+		   :value ""))
+     (:div (:label "kolikin")
+	   (:input :type :checkbox
+		   :name "kolikin"
 		   :value ""))
      (:div (:label "weight (kg)")
 	   (:input :type :number
@@ -69,37 +103,38 @@
 	     :value "submit"))
     (:table :id "data"
 	    (htm :tr (let ((entry (first *db*)))
-		       (dolist (field '(timestamp food temperature pee poo weight height notes))
+		       (dolist (field '(timestamp bv kv temperature pee poo vitaminD vitaminK kolikin weight height notes))
 			 (htm (:th (fmt "~a" field))))))
 	    (dolist (entry *db*)
 	      (htm (:tr
-		    (multiple-value-bind
-			  (second minute hour date month year day-of-week dst-p tz)
-			(decode-universal-time (cdr (assoc 'timestamp entry)))
-		      (htm (:td (fmt "~2,'0d.~2,'0d.~4,'0d ~2,'0d:~2,'0d" date month year hour minute))))
-		    (:td (fmt "~@[ ~a~]" (cdr (assoc 'food entry))))
-		    (:td (fmt "~@[ ~a~]" (cdr (assoc 'temperature entry))))
-		    (:td (fmt "~@[ ~a~]" (cdr (assoc 'pee entry))))
-		    (:td (fmt "~@[ ~a~]" (cdr (assoc 'poo entry))))
-		    (:td (fmt "~@[ ~a~]" (cdr (assoc 'weight entry))))
-		    (:td (fmt "~@[ ~a~]" (cdr (assoc 'height entry))))
-		    (:td (fmt "~@[ ~a~]" (cdr (assoc 'notes entry))))))))))
+		    (:td (local-time:format-timestring
+			  t
+			  (local-time:universal-to-timestamp (cdr (assoc 'timestamp entry)))
+			  :format (concatenate 'list +diary-date-format+ (list " ") +diary-time-format+)))
+		    (dolist (field '(bv kv temperature pee poo vitaminD vitaminK kolikin weight height notes))
+		      (htm (:td (fmt "~@[ ~a~]" (cdr (assoc field entry))))))))))))
 
 (define-easy-handler (submit-handler :uri "/submit")
     ;; lambda form
-    ((food :parameter-type 'integer)
+    ((date :parameter-type 'string)
+     (time :parameter-type 'string)
+     (bv :parameter-type 'integer)
+     (kv :parameter-type 'integer)
      (temperature :parameter-type #'(lambda (s) (parse-float:parse-float s :junk-allowed t)))
      (weight :parameter-type #'(lambda (s) (parse-float:parse-float s :junk-allowed t)))
      (height :parameter-type 'integer)
      (poo :parameter-type 'boolean)
      (pee :parameter-type 'boolean)
+     (vitaminD :parameter-type 'boolean)
+     (vitaminK :parameter-type 'boolean)
+     (kolikin :parameter-type 'boolean)
      (notes :parameter-type 'string))
 
   ;; body
-  ;; TODO this should be created with a macro
   (let ((params (pairlis
-		 (list 'timestamp 'food 'temperature 'weight 'height 'pee 'poo 'notes)
-		 (list (get-universal-time) food temperature weight height pee poo notes))))
+		 (list 'timestamp 'bv 'kv 'temperature 'weight 'height 'pee 'poo 'vitaminD 'vitaminK 'kolikin 'notes)
+		 (list
+		  (parse-request-datetime date time) bv kv temperature weight height pee poo vitaminD vitaminK kolikin notes))))
     (push params *db*)
     ;; save to disk
     (incf *save-counter*)
@@ -107,7 +142,7 @@
       (with-open-file (s *db_path* :direction :output :if-exists :overwrite)
 	(pprint *db* s))
       (setq *save-counter* 0))
-    (format t "~{~a ~}" *db*)
+    (format t "~{~a ~}" params)
     (redirect "/")))
 
 (push (hunchentoot:create-static-file-dispatcher-and-handler "/www/main.css" "./www/main.css") *dispatch-table*)
